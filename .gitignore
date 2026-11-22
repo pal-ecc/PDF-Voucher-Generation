@@ -1,0 +1,10 @@
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/build/
+kendo-ui-license.txt
+sixlabors.lic
+.vs/
+.local/
+*.user
