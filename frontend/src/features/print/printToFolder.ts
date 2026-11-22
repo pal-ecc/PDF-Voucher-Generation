@@ -1,5 +1,5 @@
 import { unzipSync } from 'fflate';
-import type { PdfDirectory, PdfPickerWindow, PrintPayload, PrintProgress, PrintResult, PdfDownloadData, ResponseDto } from './types';
+import type { PdfDirectory, PdfPickerWindow, PrintPayload, PrintProgress, PrintResult, PdfDownloadData } from './types';
 
 export class PdfSaveError extends Error {
   readonly savedFiles: string[];
@@ -38,6 +38,7 @@ async function availableName(directory: PdfDirectory, original: string): Promise
  */
 export async function printToFolder(
   payload: PrintPayload,
+  generatePdfBatch: (payload: PrintPayload) => Promise<PdfDownloadData>,
   onProgress: (progress: PrintProgress) => void = () => {},
 ): Promise<PrintResult | null> {
   let directory: PdfDirectory | undefined;
@@ -53,24 +54,7 @@ export async function printToFolder(
   }
 
   onProgress({ phase: 'generating', saved: 0, folderName: directory?.name });
-  const endpoint = Object.prototype.hasOwnProperty.call(payload, 'invoiceId') ? '/api/pdf/batch' : '/api/pdf/batch/selection';
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-  const body: (ResponseDto<PdfDownloadData> & { title?: unknown; detail?: unknown }) | null = await response.json().catch(() => null);
-  if (!response.ok || (typeof body?.status === 'number' && body.status !== 200)) {
-    const problemMessage = [body?.title, body?.detail].filter(value => typeof value === 'string' && value.trim()).join(': ');
-    const message = typeof body?.message === 'string' && body.message.trim() ? body.message : problemMessage;
-    throw new Error(message || `PDF generation failed (${response.status})`);
-  }
-
-  const download = body?.result?.data;
-  if (body?.status !== 200 || typeof download?.fileName !== 'string' ||
-      download.contentType !== 'application/zip' || typeof download.contentBase64 !== 'string' || !download.contentBase64) {
-    throw new Error('PDF generation returned an invalid response. Please try again.');
-  }
+  const download = await generatePdfBatch(payload);
   let zipBytes: Uint8Array;
   try {
     zipBytes = Uint8Array.from(atob(download.contentBase64), character => character.charCodeAt(0));

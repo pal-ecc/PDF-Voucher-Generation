@@ -88,6 +88,8 @@ The package versions supplied by the user are retained, with `fflate` added for 
 
 `printToFolder` opens `showDirectoryPicker({ id: 'pdf-export', mode: 'readwrite' })` before any network request. It reports choosing/generating/saving stages, increments counts only after files close, and displays the destination and actual saved filenames. Partial failures report completed files. Picker cancellation is silent.
 
+API requests use React Query v3 through `usePdfBatchMutation`, endpoint constants in `src/constants/web-resource-key-constants.ts`, and the shared JSON POST helper `postWithPathQuery` in `src/core`. The app root supplies `QueryClientProvider`. `PrintButton` passes the hook's `mutateAsync` function into `printToFolder`, which invokes it only after folder selection. Mutation success/error callbacks describe the generation request; saving progress and failures remain part of the export flow. Automatic request retries are disabled.
+
 Existing names are preserved: duplicates receive `(2)`, `(3)`, etc. Path segments are stripped from ZIP entries and non-PDF/directory entries are skipped. Web Locks serialize this app's exports across same-origin tabs. Browser filesystem APIs have no atomic create-if-absent operation; other applications can still modify the destination concurrently. Exports are not transactional and a failed new file can leave an empty placeholder.
 
 Chrome/Edge support folder selection on localhost/HTTPS. Protected folders may be blocked; choose a subfolder. Firefox/Safari download the ZIP instead, and the browser controls download naming. The UI reports that a download started because it cannot confirm a completed browser download.
