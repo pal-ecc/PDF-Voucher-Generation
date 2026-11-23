@@ -1,6 +1,6 @@
 # PDF workspace
 
-.NET 10 controller API using PdfSharpCore/MigraDocCore, with a React 17 + TypeScript + Create React App frontend and the requested KendoReact 5 packages. This workspace was initially empty; no existing database or application conventions were available. npm is used with an included lockfile. No test projects are included.
+.NET 10 controller API using PdfSharpCore and HTML Renderer, with a React 17 + TypeScript + Create React App frontend and the requested KendoReact 5 packages. This workspace was initially empty; no existing database or application conventions were available. npm is used with an included lockfile. A dependency-free rendering regression executable is included under `tests/PdfBatch.RenderingChecks`.
 
 ## Run locally
 
@@ -46,7 +46,9 @@ The controller validates requests and returns `Task<ResponseDto>` using the appl
 
 The same scoped implementation is registered as `IPdfBatchService` to preserve the original `CreateZipAsync(PrintRequest, CancellationToken)` contract. Single-invoice export remains available through the API and the reusable `PrintButton` component.
 
-The supplied example referenced ERP-specific read services, a database connection, an attachment store, and persistent retry/audit records. Those do not exist in this workspace. They were not fabricated: `DevelopmentInvoiceRepository` remains an explicit in-memory stub. Today's method includes all invoices dated today, including previously exported ones; it does not claim to track new/unprocessed vouchers. The current PDF templates use MigraDocCore document objects rather than copying the sample's incomplete ERP HTML and unavailable data fields. Attachment merging and persistent failed-generation retries are not implemented.
+The supplied example referenced ERP-specific read services, a database connection, an attachment store, and persistent retry/audit records. Those do not exist in this workspace. `DevelopmentInvoiceRepository` remains an explicit in-memory stub. Today's method includes all invoices dated today, including previously exported ones; it does not claim to track new/unprocessed vouchers. Both PDF templates build HTML strings and render them with `PdfGenerator.AddPdfPages`. Attachment merging and persistent failed-generation retries are not implemented.
+
+`VoucherDocument` uses the supplied **ECC Invoice Allocation** HTML with dummy data, as requested. It preserves the two-column header, eight allocation columns, totals, and three approval groups. Voucher/invoice identifiers, vendor, currency and amount come from the selected sample invoice. Due date, invoice period, users, allocation codes, hours and approval entries are demonstration values, explicitly labeled in the document. Two allocation amounts split the invoice total 60/40 with rounding; the final row receives the remainder. The missing company image is represented by a text ECC logo. Stray pasted hyphens and unsupported CSS were cleaned up; text values are HTML-encoded and external image/stylesheet loading is blocked. Both invoice and allocation voucher are A4 portrait.
 
 ## API and sample data
 
@@ -76,7 +78,7 @@ Endpoints return `application/json`. Success wraps a ZIP containing `Invoice-{in
 
 The frontend decodes `Result.Data.ContentBase64` to ZIP bytes before extracting PDFs or starting the fallback ZIP download, and displays errors from `Message`. JSON Base64 adds roughly 33% to ZIP size and increases peak memory use. This replaces the earlier binary ZIP response contract; external callers must parse the envelope too. ZIP download filenames use UTC timestamps. Today uses the API server's local date.
 
-Sample invoice ids 1 and 2 are dated today; id 3 is dated one month earlier. Invoice numbers are 1001–1003; voucher numbers are V-1001–V-1003. Voucher amounts equal the full invoice total, and payment method is unspecified because payment data is unavailable. Money uses decimal and tax rounds away from zero. `IAmountInWordsFormatter` can be replaced for lakh/crore grouping.
+Sample invoice ids 1 and 2 are dated today; id 3 is dated one month earlier. Invoice numbers are 1001–1003; voucher numbers are V-1001–V-1003. Voucher amounts equal the full invoice total. Money uses decimal and tax rounds away from zero. The existing `IAmountInWordsFormatter` remains available, but the supplied ECC allocation template does not display an amount-in-words field.
 
 The API refuses startup outside Development until the stub is replaced. Before deploying, register real authorized data access, scope lookups to the current user/tenant, and deploy the frontend/API behind the same origin. No database schema or migrations were added.
 
@@ -96,7 +98,7 @@ Chrome/Edge support folder selection on localhost/HTTPS. Protected folders may b
 
 ## Dependencies and deployment limitations
 
-- QuestPDF has been removed. PdfSharpCore and MigraDocCore are version 1.3.67.
+- QuestPDF and MigraDocCore are removed. PdfSharpCore is version 1.3.67; `Polybioz.HtmlRenderer.PdfSharp.Core` 1.1.0 provides the requested `TheArtOfDev.HtmlRenderer` namespaces. HTML Renderer supports a limited HTML/CSS subset; these templates use tables rather than browser layout features.
 - PdfSharpCore's original ImageSharp dependency has known vulnerabilities. ImageSharp 3.2.0 is explicitly referenced to pass NuGet's vulnerability audit without disabling checks. The templates are text/table only. Legacy PdfSharpCore image-loading APIs need an adapter before adding logos or other images with this major-version override.
 - The installed ImageSharp package reports that Debug can continue without a license but Release builds require a valid SixLabors license. Configure the vendor-supported `SixLaborsLicenseKey`/`SixLaborsLicenseFile` externally; no credentials or license keys are stored here. Its warning has not been suppressed.
 - KendoReact components require appropriate Telerik licensing. Supply your own license through the vendor-supported activation workflow. License files are ignored by Git.
@@ -108,9 +110,10 @@ Chrome/Edge support folder selection on localhost/HTTPS. Protected folders may b
 ## Verification
 
 - Backend Debug build succeeds; ImageSharp reports a license warning. Release licensing remains unresolved.
+- The HTML Renderer migration was verified using an isolated output directory because the running API locked the default executable: `dotnet restore PdfBatch.slnx --artifacts-path .local/html-renderer-build`, then `dotnet build PdfBatch.slnx --no-restore --artifacts-path .local/html-renderer-build -m:1 -p:UseSharedCompilation=false`. Running `dotnet .local/html-renderer-build/bin/PdfBatch.RenderingChecks/debug/PdfBatch.RenderingChecks.dll` passed all rendering checks. `pdfinfo` confirmed the A4 allocation voucher; `pdftoppm` previews of the invoice and allocation voucher were visually inspected.
 - Live checks cover the ResponseDto success/error contract, all three service selections, the single-invoice endpoint, model validation, and malformed JSON. Frontend smoke checks use actual API envelopes for ZIP decoding, numbered file copies, saving progress, partial failure, picker cancellation, and the fallback download.
 - `npm run typecheck` succeeds. `npm run build` succeeds with the Kendo-theme CSS warning described above.
-- PdfSharpCore generated a ZIP containing both PDFs. `pdfinfo` confirmed A4 invoice and A5 landscape voucher; both were rendered with `pdftoppm` and visually inspected.
+- The previous renderer produced an A4 invoice and A5 landscape voucher. The ECC allocation template now uses A4 portrait, matching the supplied HTML example. Run `dotnet run --project tests/PdfBatch.RenderingChecks` for PDF readability, dimensions, multipage rendering, culture, encoded input, ZIP contract, missing invoice and cancellation checks. Generated samples are written to `.local/html-renderer-checks`.
 - Browser checks confirmed three tabs, disabled export for an empty voucher number, sample voucher selection, Last month selection, selection summaries, and visible choosing-folder feedback.
 - Native folder saving/overwriting protection and Firefox ZIP download still require manual acceptance checks. Repeat an export into the same folder and confirm numbered copies and unchanged originals; try an invalid voucher and confirm inline feedback.
 

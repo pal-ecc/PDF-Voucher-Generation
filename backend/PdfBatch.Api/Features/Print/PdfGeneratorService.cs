@@ -95,7 +95,7 @@ public sealed class PdfGeneratorService : IPdfGeneratorService
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        // PdfSharpCore/MigraDocCore rendering is synchronous CPU work; cancellation is checked between
+        // PdfSharpCore/HTML Renderer rendering is synchronous CPU work; cancellation is checked between
         // documents and passed to the ZIP writes. No blocking async waits or Task.Run wrappers.
         await addToZip($"Invoice-{invoice.InvoiceNo}.pdf", InvoiceDocument.Render(invoice));
         cancellationToken.ThrowIfCancellationRequested();

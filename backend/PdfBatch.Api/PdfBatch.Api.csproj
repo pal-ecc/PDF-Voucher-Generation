@@ -7,7 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="PdfSharpCore" Version="1.3.67" />
-    <PackageReference Include="MigraDocCore.Rendering" Version="1.3.67" />
+    <PackageReference Include="Polybioz.HtmlRenderer.PdfSharp.Core" Version="1.1.0" />
     <!-- The templates are text/table only; override the vulnerable legacy image dependency.
          PdfSharpCore's legacy image-loading APIs require an adapter before adding images. -->
     <PackageReference Include="SixLabors.ImageSharp" Version="3.2.0" />

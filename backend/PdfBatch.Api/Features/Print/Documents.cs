@@ -1,7 +1,10 @@
 using System.Globalization;
-using MigraDocCore.DocumentObjectModel;
-using MigraDocCore.DocumentObjectModel.Tables;
-using MigraDocCore.Rendering;
+using System.Net;
+using PdfSharpCore;
+using PdfSharpCore.Drawing;
+using PdfSharpCore.Pdf;
+using TheArtOfDev.HtmlRenderer.Core.Entities;
+using TheArtOfDev.HtmlRenderer.PdfSharp;
 
 namespace PdfBatch.Api.Features.Print;
 
@@ -9,148 +12,117 @@ public static class InvoiceDocument
 {
     public static byte[] Render(InvoiceData invoice)
     {
-        var document = PdfLayout.Create(10);
-        var section = document.AddSection();
-        section.PageSetup.PageFormat = PageFormat.A4;
-        PdfLayout.Margins(section, 36);
-        PdfLayout.Header(section, "INVOICE", $"Invoice: {invoice.InvoiceNo}\nDate: {invoice.Date:yyyy-MM-dd}", 523, 24);
-
-        var billTo = section.AddParagraph($"Bill to\n{invoice.CustomerName}\n{invoice.CustomerAddress}");
-        billTo.Format.SpaceBefore = Unit.FromPoint(20);
-        billTo.Format.SpaceAfter = Unit.FromPoint(16);
-
-        var table = section.AddTable();
-        table.Rows.LeftIndent = Unit.FromPoint(0);
-        table.TopPadding = Unit.FromPoint(6);
-        table.BottomPadding = Unit.FromPoint(6);
-        foreach (var width in new[] { 25, 288, 40, 85, 85 }) table.AddColumn(Unit.FromPoint(width));
-        var header = table.AddRow();
-        header.HeadingFormat = true;
-        header.Shading.Color = Colors.LightGray;
-        header.Format.Font.Bold = true;
-        var labels = new[] { "#", "Description", "Qty", "Unit price", "Total" };
-        for (var i = 0; i < labels.Length; i++) SetCell(header, i, labels[i]);
+        string htmlContent = PdfLayout.StartHtml("Invoice", 10) + @"
+<table class='pdf-title-row'>
+  <tr><td><h2 class='pdf-title'>INVOICE</h2></td></tr>
+</table>
+<table class='pdf-header-table'>
+  <tr>
+    <td style='width:50%'>
+      <div><span class='pdf-header-label'>Bill to:</span> <span class='pdf-header-value'>" + PdfLayout.Text(invoice.CustomerName) + @"</span></div>
+      <div>" + PdfLayout.Text(invoice.CustomerAddress) + @"</div>
+    </td>
+    <td style='width:50%'>
+      <div><span class='pdf-header-label'>Invoice No.:</span> <span class='pdf-header-value'>" + PdfLayout.Text(invoice.InvoiceNo) + @"</span></div>
+      <div><span class='pdf-header-label'>Invoice Date:</span> " + PdfLayout.Date(invoice.Date) + @"</div>
+      <div><span class='pdf-header-label'>Invoice Currency:</span> " + PdfLayout.Text(invoice.Currency) + @"</div>
+    </td>
+  </tr>
+</table>
+<table class='pdf-table-layout' cellspacing='0' cellpadding='0'>
+  <thead><tr>
+    <th style='width:5%'>#</th><th style='width:55%'>Description</th>
+    <th style='width:8%;text-align:right'>Qty</th>
+    <th style='width:16%;text-align:right'>Unit price</th>
+    <th style='width:16%;text-align:right'>Total</th>
+  </tr></thead><tbody>";
 
         for (var i = 0; i < invoice.Lines.Count; i++)
         {
             var line = invoice.Lines[i];
-            var row = table.AddRow();
-            row.Borders.Bottom.Width = Unit.FromPoint(0.5);
-            row.Borders.Bottom.Color = Colors.LightGray;
-            SetCell(row, 0, (i + 1).ToString(CultureInfo.InvariantCulture));
-            SetCell(row, 1, line.Description);
-            SetCell(row, 2, line.Qty.ToString(CultureInfo.InvariantCulture));
-            SetCell(row, 3, Money(line.UnitPrice));
-            SetCell(row, 4, Money(line.Total));
+            htmlContent += @"
+  <tr>
+    <td>" + (i + 1).ToString(CultureInfo.InvariantCulture) + @"</td>
+    <td>" + PdfLayout.Text(line.Description) + @"</td>
+    <td style='text-align:right'>" + line.Qty.ToString(CultureInfo.InvariantCulture) + @"</td>
+    <td style='text-align:right'>" + Money(line.UnitPrice) + @"</td>
+    <td style='text-align:right'>" + Money(line.Total) + @"</td>
+  </tr>";
         }
 
-        var totals = section.AddParagraph();
-        totals.Format.Alignment = ParagraphAlignment.Right;
-        totals.Format.SpaceBefore = Unit.FromPoint(16);
-        totals.Format.KeepTogether = true;
-        totals.AddText($"Subtotal: {Money(invoice.SubTotal)}");
-        totals.AddLineBreak();
-        totals.AddText($"Tax ({invoice.TaxRate.ToString("0.##%", CultureInfo.InvariantCulture)}): {Money(invoice.Tax)}");
-        totals.AddLineBreak();
-        totals.AddFormattedText($"Total: {invoice.Currency} {Money(invoice.GrandTotal)}", TextFormat.Bold);
-
-        var footer = section.Footers.Primary.AddParagraph();
-        footer.Format.Alignment = ParagraphAlignment.Center;
-        footer.AddPageField();
-        footer.AddText(" / ");
-        footer.AddNumPagesField();
-        return PdfLayout.Render(document);
-    }
-
-    private static void SetCell(Row row, int index, string value)
-    {
-        row.Cells[index].Format.Alignment = index >= 2 ? ParagraphAlignment.Right : ParagraphAlignment.Left;
-        row.Cells[index].AddParagraph(value);
+        htmlContent += @"
+  </tbody>
+</table>
+<div class='pdf-totals'>
+  Subtotal: " + Money(invoice.SubTotal) + @"<br />
+  Tax (" + invoice.TaxRate.ToString("0.##%", CultureInfo.InvariantCulture) + @"): " + Money(invoice.Tax) + @"<br />
+  <span class='pdf-bold-font'>Total: " + PdfLayout.Text(invoice.Currency) + " " + Money(invoice.GrandTotal) + @"</span>
+</div>
+</body>
+</html>";
+        var config = new PdfGenerateConfig { PageSize = PageSize.A4 };
+        config.SetMargins(36);
+        return PdfLayout.Render(htmlContent, config, (graphics, page, index, count) =>
+            graphics.DrawString($"{index + 1} / {count}", new XFont("Arial", 9), XBrushes.Black,
+                new XRect(36, page.Height.Point - 27, page.Width.Point - 72, 12), XStringFormats.Center));
     }
 
     internal static string Money(decimal value) => value.ToString("N2", CultureInfo.InvariantCulture);
 }
 
-public sealed class VoucherDocument(IAmountInWordsFormatter words)
-{
-    public byte[] Render(VoucherData voucher)
-    {
-        var document = PdfLayout.Create(11);
-        var section = document.AddSection();
-        section.PageSetup.PageFormat = PageFormat.A5;
-        section.PageSetup.Orientation = Orientation.Landscape;
-        PdfLayout.Margins(section, 30);
-        section.PageSetup.BottomMargin = Unit.FromPoint(60);
-        section.PageSetup.FooterDistance = Unit.FromPoint(30);
-        PdfLayout.Header(section, voucher.Title.ToUpperInvariant(), $"Voucher: {voucher.VoucherNo}\nDate: {voucher.Date:yyyy-MM-dd}", 535, 18);
-
-        foreach (var (text, bold) in new (string, bool)[]
-        {
-            ($"Party: {voucher.PartyName}", false),
-            ($"Against invoice: {voucher.InvoiceNo}", false),
-            ($"Amount: {voucher.Currency} {InvoiceDocument.Money(voucher.Amount)}", true),
-            ($"Amount in words: {words.Format(voucher.Amount)}", false),
-            ($"Method: {voucher.Method}", false),
-            ($"Narration: {voucher.Narration}", false)
-        })
-        {
-            var paragraph = section.AddParagraph(text);
-            paragraph.Format.SpaceBefore = Unit.FromPoint(8);
-            paragraph.Format.Font.Bold = bold;
-        }
-
-        var signatures = section.Footers.Primary.AddTable();
-        foreach (var width in new[] { 162, 24, 162, 24, 163 }) signatures.AddColumn(Unit.FromPoint(width));
-        var row = signatures.AddRow();
-        foreach (var (index, label) in new[] { (0, "Prepared by"), (2, "Approved by"), (4, "Received by") })
-        {
-            row.Cells[index].Borders.Top.Width = Unit.FromPoint(0.5);
-            row.Cells[index].Format.Alignment = ParagraphAlignment.Center;
-            row.Cells[index].AddParagraph(label).Format.SpaceBefore = Unit.FromPoint(5);
-        }
-        return PdfLayout.Render(document);
-    }
-}
-
 internal static class PdfLayout
 {
-    public static Document Create(int fontSize)
-    {
-        var document = new Document();
-        var normal = document.Styles[StyleNames.Normal]!;
-        normal.Font.Name = "Arial";
-        normal.Font.Size = Unit.FromPoint(fontSize);
-        return document;
-    }
+    // Only server-owned markup is rendered. All business values are encoded before concatenation.
+    public static string Text(string value) => WebUtility.HtmlEncode(value)
+        .Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n')
+        .Replace("\n", "<br />", StringComparison.Ordinal);
 
-    public static void Margins(Section section, int points)
-    {
-        section.PageSetup.TopMargin = Unit.FromPoint(points);
-        section.PageSetup.BottomMargin = Unit.FromPoint(points);
-        section.PageSetup.LeftMargin = Unit.FromPoint(points);
-        section.PageSetup.RightMargin = Unit.FromPoint(points);
-        section.PageSetup.FooterDistance = Unit.FromPoint(18);
-    }
+    public static string Date(DateOnly date) => date.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture);
 
-    public static void Header(Section section, string title, string reference, int width, int fontSize)
-    {
-        var table = section.AddTable();
-        table.AddColumn(Unit.FromPoint(width * .6));
-        table.AddColumn(Unit.FromPoint(width * .4));
-        var row = table.AddRow();
-        row.Cells[0].AddParagraph(title).Format.Font.Size = Unit.FromPoint(fontSize);
-        row.Cells[0].Format.Font.Bold = true;
-        row.Cells[1].Format.Alignment = ParagraphAlignment.Right;
-        row.Cells[1].AddParagraph(reference);
-    }
+    public static string StartHtml(string title, int fontSize) => @"
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>" + Text(title) + @"</title>
+<style>
+  body { margin:0; font-family:Arial; font-size:" + fontSize.ToString(CultureInfo.InvariantCulture) + @"pt; color:#222; }
+  table { width:100%; border-collapse:collapse; }
+  td, th { vertical-align:top; text-align:left; }
+  p { margin:8pt 0 0 0; }
+  .pdf-title-row td { padding:3pt 4pt; }
+  .pdf-title { margin:0; color:#2978a8; font-size:21pt; }
+  .pdf-header-table { margin-top:8pt; }
+  .pdf-header-table td { padding:4pt; border:0.5pt solid #d9d9d9; }
+  .pdf-header-label, .pdf-header-value { font-weight:bold; }
+  .pdf-table-layout { margin-top:10pt; }
+  .pdf-table-layout th { color:#2978a8; background-color:#f3f7fa; }
+  .pdf-table-layout td, .pdf-table-layout th { padding:4pt; border:0.5pt solid #d9d9d9; }
+  .pdf-table-layout tr { page-break-inside:avoid; }
+  .pdf-bold-font { font-weight:bold; color:#2978a8; }
+  .pdf-totals { text-align:right; margin-top:14pt; page-break-inside:avoid; }
+</style>
+</head>
+<body>";
 
-    public static byte[] Render(Document document)
+    public static byte[] Render(string htmlContent, PdfGenerateConfig config,
+        Action<XGraphics, PdfPage, int, int>? drawFooter = null)
     {
-        var renderer = new PdfDocumentRenderer { Document = document };
-        renderer.RenderDocument();
+        using var document = new PdfDocument();
+        PdfGenerator.AddPdfPages(document, htmlContent, config,
+            stylesheetLoad: BlockStylesheet, imageLoad: BlockImage);
+        for (var i = 0; drawFooter is not null && i < document.PageCount; i++)
+        {
+            var page = document.Pages[i];
+            using var graphics = XGraphics.FromPdfPage(page, XGraphicsPdfPageOptions.Append);
+            drawFooter(graphics, page, i, document.PageCount);
+        }
         using var output = new MemoryStream();
-        using var pdf = renderer.PdfDocument;
-        pdf.Save(output, closeStream: false);
+        document.Save(output, closeStream: false);
         return output.ToArray();
     }
+
+    // Templates are text/table only. Prevent accidental filesystem/network resource loading.
+    private static void BlockStylesheet(object? sender, HtmlStylesheetLoadEventArgs args) => args.SetStyleSheet = " ";
+    private static void BlockImage(object? sender, HtmlImageLoadEventArgs args) => args.Callback();
 }
