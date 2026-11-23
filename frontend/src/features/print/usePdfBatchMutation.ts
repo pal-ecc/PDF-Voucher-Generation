@@ -4,9 +4,9 @@ import { postWithPathQuery } from '../../core';
 import { PdfApiConstants } from '../../constants/web-resource-key-constants';
 import type { PdfDownloadData, PrintPayload, ResponseDto } from './types';
 
-export async function generatePdfBatch(data: PrintPayload): Promise<PdfDownloadData> {
+export async function generatePdfBatch(data: PrintPayload, empid: { empId: number }): Promise<PdfDownloadData> {
   const endpoint = 'invoiceId' in data ? PdfApiConstants.PDF_BATCH : PdfApiConstants.PDF_BATCH_SELECTION;
-  const body = await postWithPathQuery<ResponseDto<PdfDownloadData> | null>(endpoint, undefined, data);
+  const body = await postWithPathQuery<ResponseDto<PdfDownloadData> | null>(endpoint, empid, data);
   if (typeof body?.status === 'number' && body.status !== 200) {
     throw new Error(body.message || `PDF generation failed (${body.status})`);
   }
@@ -21,12 +21,13 @@ export async function generatePdfBatch(data: PrintPayload): Promise<PdfDownloadD
 type MutationOptions = UseMutationOptions<PdfDownloadData, Error, PrintPayload>;
 
 export function usePdfBatchMutation(
+  empid: { empId: number },
   successHandler?: MutationOptions['onSuccess'],
   errorHandler?: MutationOptions['onError'],
 ) {
   return useMutation<PdfDownloadData, Error, PrintPayload>(
     ['PdfBatchAdd'],
-    generatePdfBatch,
+    data => generatePdfBatch(data, empid),
     { onSuccess: successHandler, onError: errorHandler, retry: false },
   );
 }

@@ -7,13 +7,14 @@ import { usePdfBatchMutation } from './usePdfBatchMutation';
 type PrintButtonProps = ({ invoiceId: number; selection?: never } | { invoiceId?: never; selection: PrintSelection }) & { disabled?: boolean; onBusyChange?: (busy: boolean) => void };
 
 export function PrintButton({ invoiceId, selection, disabled = false, onBusyChange }: PrintButtonProps) {
+  const empid = { empId: 900 };
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [progress, setProgress] = useState<PrintProgress | null>(null);
   const [outcome, setOutcome] = useState<'success' | 'error' | null>(null);
   const [savedFiles, setSavedFiles] = useState<string[]>([]);
   const running = useRef(false);
-  const { mutateAsync: generatePdfBatch } = usePdfBatchMutation();
+  const { mutateAsync: generatePdfBatch } = usePdfBatchMutation(empid);
 
   const stageText = progress?.phase === 'choosing' ? 'Choose a folder to save your PDFs…'
     : progress?.phase === 'generating' ? 'Generating your PDFs. Please keep this page open…'
