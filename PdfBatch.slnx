@@ -2,7 +2,4 @@
   <Folder Name="/backend/">
     <Project Path="backend/PdfBatch.Api/PdfBatch.Api.csproj" />
   </Folder>
-  <Folder Name="/tests/">
-    <Project Path="tests/PdfBatch.RenderingChecks/PdfBatch.RenderingChecks.csproj" />
-  </Folder>
 </Solution>

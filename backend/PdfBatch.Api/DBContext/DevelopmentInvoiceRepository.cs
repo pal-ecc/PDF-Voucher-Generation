@@ -1,10 +1,7 @@
-namespace PdfBatch.Api.Features.Print;
+using PdfBatch.Api.Core.Interfaces;
+using PdfBatch.Api.Models.Print;
 
-public interface IInvoiceRepository
-{
-    Task<InvoiceData?> GetAsync(int invoiceId, CancellationToken cancellationToken);
-    Task<IReadOnlyList<int>> FindIdsAsync(PrintSelection selection, CancellationToken cancellationToken);
-}
+namespace PdfBatch.Api.DBContext;
 
 /// <summary>IN-MEMORY DEVELOPMENT STUB. No database or persistence is configured.</summary>
 public sealed class DevelopmentInvoiceRepository(TimeProvider clock) : IInvoiceRepository

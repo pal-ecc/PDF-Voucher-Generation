@@ -1,8 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace PdfBatch.Api.Features.Print;
-
-public sealed record PrintRequest(int InvoiceId);
+namespace PdfBatch.Api.Models.Print;
 
 // A separate endpoint preserves the single-invoice contract while supporting the three batch filters.
 public sealed record PrintSelection : IValidatableObject
@@ -22,19 +20,3 @@ public sealed record PrintSelection : IValidatableObject
             yield return new("A valid month and year are required.", [nameof(Month), nameof(Year)]);
     }
 }
-
-public sealed record InvoiceLine(string Description, int Qty, decimal UnitPrice)
-{
-    public decimal Total => Qty * UnitPrice;
-}
-
-public sealed record InvoiceData(string InvoiceNo, DateOnly Date, string CustomerName,
-    string CustomerAddress, List<InvoiceLine> Lines, decimal TaxRate, string Currency)
-{
-    public decimal SubTotal => Lines.Sum(line => line.Total);
-    public decimal Tax => decimal.Round(SubTotal * TaxRate, 2, MidpointRounding.AwayFromZero);
-    public decimal GrandTotal => SubTotal + Tax;
-}
-
-public sealed record VoucherData(string VoucherNo, DateOnly Date, string Title, string PartyName,
-    string InvoiceNo, decimal Amount, string Currency, string Method, string Narration);

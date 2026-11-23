@@ -1,11 +1,7 @@
+using PdfBatch.Api.Core.Interfaces;
 using System.Globalization;
 
-namespace PdfBatch.Api.Features.Print;
-
-public interface IAmountInWordsFormatter
-{
-    string Format(decimal amount);
-}
+namespace PdfBatch.Api.Utility;
 
 /// <summary>International grouping; replace this DI registration for lakh/crore grouping.</summary>
 public sealed class InternationalAmountInWordsFormatter : IAmountInWordsFormatter

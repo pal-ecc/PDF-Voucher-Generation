@@ -1,8 +1,9 @@
+using PdfBatch.Api.Models.Print;
 using System.Globalization;
 using PdfSharpCore;
 using TheArtOfDev.HtmlRenderer.PdfSharp;
 
-namespace PdfBatch.Api.Features.Print;
+namespace PdfBatch.Api.Helpers.Pdf;
 
 // Development demonstration of the supplied ECC template. Allocation and approval values are dummy data.
 public sealed class VoucherDocument

@@ -1,12 +1,9 @@
+using PdfBatch.Api.Core.Interfaces;
+using PdfBatch.Api.Helpers.Pdf;
+using PdfBatch.Api.Models.Print;
 using System.IO.Compression;
 
-namespace PdfBatch.Api.Features.Print;
-
-public interface IPdfBatchService
-{
-    Task<byte[]?> CreateZipAsync(PrintRequest request, CancellationToken cancellationToken);
-    Task<byte[]?> CreateSelectionZipAsync(PrintSelection selection, CancellationToken cancellationToken);
-}
+namespace PdfBatch.Api.Services.Print;
 
 public sealed class PdfGeneratorService : IPdfGeneratorService
 {

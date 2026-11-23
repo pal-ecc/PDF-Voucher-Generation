@@ -1,6 +1,6 @@
 # PDF workspace
 
-.NET 10 controller API using PdfSharpCore and HTML Renderer, with a React 17 + TypeScript + Create React App frontend and the requested KendoReact 5 packages. This workspace was initially empty; no existing database or application conventions were available. npm is used with an included lockfile. A dependency-free rendering regression executable is included under `tests/PdfBatch.RenderingChecks`.
+.NET 10 controller API using PdfSharpCore and HTML Renderer, with a React 17 + TypeScript + Create React App frontend and the requested KendoReact 5 packages. This workspace was initially empty; no existing database or application conventions were available. npm is used with an included lockfile. The solution contains only the API project; test projects are omitted as requested.
 
 ## Run locally
 
@@ -33,6 +33,41 @@ npm run build
 ```
 
 ## Controller and generator service
+
+The backend follows the folder layout in the supplied API structure reference:
+
+```text
+backend/PdfBatch.Api/
+  Controllers/
+    PdfController.cs
+  Core/Interfaces/
+    IInvoiceRepository.cs
+    IPdfBatchService.cs
+    IPdfGeneratorService.cs
+    IAmountInWordsFormatter.cs
+  DBContext/
+    DevelopmentInvoiceRepository.cs
+  Fonts/
+    PdfFontResolver.cs
+  Helpers/Pdf/
+    InvoiceDocument.cs
+    VoucherDocument.cs
+    PdfLayout.cs
+  Middleware/
+    ApiExceptionHandler.cs
+  Models/
+    ResponseDto.cs
+    Print/  # Request, selection, download, invoice and voucher models
+  Services/Print/
+    PdfGeneratorService.cs
+  Utility/
+    InternationalAmountInWordsFormatter.cs
+  Properties/launchSettings.json
+  Program.cs
+  Startup.cs
+```
+
+`Program.cs` creates the host; `Startup.ConfigureServices` registers dependencies, validation responses and fonts, and `Startup.Configure` wires error handling and controllers. Namespaces match the folders. Controller routes and the JSON response contract are preserved. `DBContext` contains the existing development data-access implementation; it is not an Entity Framework context and adds no database dependency. The reference's authorization, email, EDM builders, extensions and logger folders can be added when those features exist. No empty folders, unused configuration files or new packages were introduced. Existing frontend `empId` query changes are preserved; they do not implement backend authorization.
 
 `PdfController` receives a scoped `IPdfGeneratorService` through constructor injection. `PdfGeneratorService` mirrors the three application entry points in the supplied service example:
 
@@ -110,10 +145,10 @@ Chrome/Edge support folder selection on localhost/HTTPS. Protected folders may b
 ## Verification
 
 - Backend Debug build succeeds; ImageSharp reports a license warning. Release licensing remains unresolved.
-- The HTML Renderer migration was verified using an isolated output directory because the running API locked the default executable: `dotnet restore PdfBatch.slnx --artifacts-path .local/html-renderer-build`, then `dotnet build PdfBatch.slnx --no-restore --artifacts-path .local/html-renderer-build -m:1 -p:UseSharedCompilation=false`. Running `dotnet .local/html-renderer-build/bin/PdfBatch.RenderingChecks/debug/PdfBatch.RenderingChecks.dll` passed all rendering checks. `pdfinfo` confirmed the A4 allocation voucher; `pdftoppm` previews of the invoice and allocation voucher were visually inspected.
+- The API structure refactor was built using `dotnet build PdfBatch.slnx --artifacts-path .local/api-structure-build -m:1 -p:UseSharedCompilation=false`. An isolated output directory avoids executable locks from an already running development API.
 - Live checks cover the ResponseDto success/error contract, all three service selections, the single-invoice endpoint, model validation, and malformed JSON. Frontend smoke checks use actual API envelopes for ZIP decoding, numbered file copies, saving progress, partial failure, picker cancellation, and the fallback download.
 - `npm run typecheck` succeeds. `npm run build` succeeds with the Kendo-theme CSS warning described above.
-- The previous renderer produced an A4 invoice and A5 landscape voucher. The ECC allocation template now uses A4 portrait, matching the supplied HTML example. Run `dotnet run --project tests/PdfBatch.RenderingChecks` for PDF readability, dimensions, multipage rendering, culture, encoded input, ZIP contract, missing invoice and cancellation checks. Generated samples are written to `.local/html-renderer-checks`.
+- The previous renderer produced an A4 invoice and A5 landscape voucher. The ECC allocation template now uses A4 portrait, matching the supplied HTML example.
 - Browser checks confirmed three tabs, disabled export for an empty voucher number, sample voucher selection, Last month selection, selection summaries, and visible choosing-folder feedback.
 - Native folder saving/overwriting protection and Firefox ZIP download still require manual acceptance checks. Repeat an export into the same folder and confirm numbered copies and unchanged originals; try an invalid voucher and confirm inline feedback.
 

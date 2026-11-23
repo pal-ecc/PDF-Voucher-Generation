@@ -1,4 +1,4 @@
-namespace PdfBatch.Api.Features.Print;
+namespace PdfBatch.Api.Core.Interfaces;
 
 /// <summary>
 /// Application entry points for the three export cases. Returns a ZIP, or null when no invoice matches.

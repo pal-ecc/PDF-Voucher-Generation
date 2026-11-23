@@ -1,8 +1,10 @@
+using PdfBatch.Api.Core.Interfaces;
+using PdfBatch.Api.Models.Print;
 using System.IO.Compression;
 using Microsoft.AspNetCore.Mvc;
-using PdfBatch.Api.Contracts;
+using PdfBatch.Api.Models;
 
-namespace PdfBatch.Api.Features.Print;
+namespace PdfBatch.Api.Controllers;
 
 [ApiController]
 [Route("api/pdf")]

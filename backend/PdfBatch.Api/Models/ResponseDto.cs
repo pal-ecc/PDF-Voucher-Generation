@@ -1,4 +1,4 @@
-namespace PdfBatch.Api.Contracts;
+namespace PdfBatch.Api.Models;
 
 public class ResultDto
 {

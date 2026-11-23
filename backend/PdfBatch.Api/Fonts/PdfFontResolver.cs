@@ -1,6 +1,6 @@
 using PdfSharpCore.Fonts;
 
-namespace PdfBatch.Api.Features.Print;
+namespace PdfBatch.Api.Fonts;
 
 /// <summary>Explicit, preloaded fonts for cross-platform hosts. No filesystem I/O during rendering.</summary>
 public sealed class PdfFontResolver(string regularPath, string boldPath) : IFontResolver
